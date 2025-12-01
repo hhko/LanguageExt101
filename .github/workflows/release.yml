@@ -1,0 +1,161 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+env:
+  CONFIGURATION: Release
+  DOTNET_VERSION: '9.0.x'
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+
+    env:
+      SOLUTION_FILE: ${{ github.workspace }}/Functorium.sln
+      PROJECT_FILE: ${{ github.workspace }}/Src/Functorium/Functorium.csproj
+      NUPKG_DIR: ${{ github.workspace }}/nupkgs
+
+    steps:
+      - name: Validate tag format
+        id: validate
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+          # Semantic Versioning 검증 (v1.2.3 또는 v1.2.3-preview.1)
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[0-9]+)?)?$ ]]; then
+            echo "::error::Invalid tag format: $TAG. Expected format: v1.2.3 or v1.2.3-preview.1"
+            exit 1
+          fi
+
+          # v 접두사 제거하여 버전 번호 추출
+          VERSION="${TAG#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Tag: $TAG, Version: $VERSION"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.SOLUTION_FILE }}
+
+      - name: Build
+        run: |
+          dotnet build ${{ env.SOLUTION_FILE }} \
+            --configuration ${{ env.CONFIGURATION }} \
+            --no-restore \
+            -p:Version=${{ steps.validate.outputs.version }}
+
+      - name: Test
+        run: |
+          dotnet test ${{ env.SOLUTION_FILE }} \
+            --configuration ${{ env.CONFIGURATION }} \
+            --no-build \
+            --logger "console;verbosity=minimal"
+
+      - name: Pack NuGet package
+        run: |
+          dotnet pack ${{ env.PROJECT_FILE }} \
+            --configuration ${{ env.CONFIGURATION }} \
+            --no-build \
+            --output ${{ env.NUPKG_DIR }} \
+            -p:PackageVersion=${{ steps.validate.outputs.version }}
+
+          echo "Generated packages:"
+          ls -la ${{ env.NUPKG_DIR }}
+
+      - name: Verify artifacts
+        run: |
+          if ! ls ${{ env.NUPKG_DIR }}/*.nupkg 1> /dev/null 2>&1; then
+            echo "::error::No NuGet packages found"
+            exit 1
+          fi
+
+          EXPECTED_VERSION="${{ steps.validate.outputs.version }}"
+          for pkg in ${{ env.NUPKG_DIR }}/*.nupkg; do
+            if [[ ! "$pkg" =~ $EXPECTED_VERSION ]]; then
+              echo "::error::Package version mismatch: $pkg"
+              exit 1
+            fi
+          done
+
+          echo "All artifacts verified successfully"
+
+      - name: Find release notes
+        id: notes
+        run: |
+          VERSION="${{ steps.validate.outputs.version }}"
+          TAG="${{ steps.validate.outputs.tag }}"
+
+          NOTES_FILE=""
+          for pattern in ".release-notes/${TAG}.md" ".release-notes/${VERSION}.md"; do
+            if [ -f "$pattern" ]; then
+              NOTES_FILE="$pattern"
+              break
+            fi
+          done
+
+          if [ -z "$NOTES_FILE" ]; then
+            echo "::warning::Release notes not found for $TAG"
+            echo "found=false" >> $GITHUB_OUTPUT
+          else
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo "file=$NOTES_FILE" >> $GITHUB_OUTPUT
+            echo "Release notes found: $NOTES_FILE"
+          fi
+
+      - name: Read release notes
+        id: read_notes
+        if: steps.notes.outputs.found == 'true'
+        run: |
+          {
+            echo 'RELEASE_NOTES<<EOF'
+            cat "${{ steps.notes.outputs.file }}"
+            echo 'EOF'
+          } >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.validate.outputs.tag }}
+          name: Release ${{ steps.validate.outputs.tag }}
+          body: ${{ env.RELEASE_NOTES || 'No release notes provided for this version.' }}
+          draft: false
+          prerelease: ${{ contains(steps.validate.outputs.version, '-') }}
+          files: |
+            ${{ env.NUPKG_DIR }}/*.nupkg
+            ${{ env.NUPKG_DIR }}/*.snupkg
+          fail_on_unmatched_files: false
+          generate_release_notes: ${{ steps.notes.outputs.found != 'true' }}
+
+      - name: Summary
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: ${{ steps.validate.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ steps.validate.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Prerelease**: ${{ contains(steps.validate.outputs.version, '-') }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
+          ls -1 ${{ env.NUPKG_DIR }}/*.nupkg 2>/dev/null | while read f; do
+            echo "- $(basename $f)" >> $GITHUB_STEP_SUMMARY
+          done
