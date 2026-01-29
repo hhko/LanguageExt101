@@ -73,25 +73,25 @@ public static class Exercise03_ApiResults
     {
         return response.StatusCode switch
         {
-            >= 200 and < 300 => FinSucc(response.Body),
-            >= 400 and < 500 => FinFail<string>(Error.New(response.StatusCode, "클라이언트 오류: " + response.Body)),
-            >= 500 => FinFail<string>(Error.New(response.StatusCode, "서버 오류: " + response.Body)),
-            _ => FinFail<string>(Error.New(response.StatusCode, "알 수 없는 응답"))
+            >= 200 and < 300 => Fin.Succ(response.Body),
+            >= 400 and < 500 => Fin.Fail<string>(Error.New(response.StatusCode, "클라이언트 오류: " + response.Body)),
+            >= 500 => Fin.Fail<string>(Error.New(response.StatusCode, "서버 오류: " + response.Body)),
+            _ => Fin.Fail<string>(Error.New(response.StatusCode, "알 수 없는 응답"))
         };
     }
 
     private static Fin<User> FetchUser(int userId)
     {
         return Users.TryGetValue(userId, out var user)
-            ? FinSucc(user)
-            : FinFail<User>(Error.New(404, $"사용자를 찾을 수 없습니다 (ID: {userId})"));
+            ? Fin.Succ(user)
+            : Fin.Fail<User>(Error.New(404, $"사용자를 찾을 수 없습니다 (ID: {userId})"));
     }
 
     private static Fin<Product> FetchProduct(int productId)
     {
         return Products.TryGetValue(productId, out var product)
-            ? FinSucc(product)
-            : FinFail<Product>(Error.New(404, $"상품을 찾을 수 없습니다 (ID: {productId})"));
+            ? Fin.Succ(product)
+            : Fin.Fail<Product>(Error.New(404, $"상품을 찾을 수 없습니다 (ID: {productId})"));
     }
 
     private static Fin<string> GetOrderDetails(int userId)

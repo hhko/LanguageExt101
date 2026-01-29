@@ -100,8 +100,8 @@ public static class E03_ErrorCombining
                 : errors + Error.New("비밀번호는 8자 이상이어야 합니다");
 
         return errors == null
-            ? FinSucc(new User(name, email))
-            : FinFail<User>(errors);
+            ? Fin.Succ(new User(name, email))
+            : Fin.Fail<User>(errors);
     }
 
     private static Either<string, User> ValidateWithEither(string name, string email, string password)

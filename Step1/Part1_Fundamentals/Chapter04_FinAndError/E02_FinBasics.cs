@@ -32,18 +32,18 @@ public static class E02_FinBasics
         Fin<int> succ1 = 100;
         MenuHelper.PrintResult("암시적 변환", succ1);
 
-        MenuHelper.PrintCode("var succ2 = FinSucc(\"Hello\");");
-        var succ2 = FinSucc("Hello");
-        MenuHelper.PrintResult("FinSucc(\"Hello\")", succ2);
+        MenuHelper.PrintCode("var succ2 = Fin.Succ(\"Hello\");");
+        var succ2 = Fin.Succ("Hello");
+        MenuHelper.PrintResult("Fin.Succ(\"Hello\")", succ2);
 
         // ============================================================
         // 3. Fin 실패 값 생성
         // ============================================================
         MenuHelper.PrintSubHeader("3. Fin 실패 값 생성");
 
-        MenuHelper.PrintCode("var fail = FinFail<int>(Error.New(\"에러 발생\"));");
-        var fail = FinFail<int>(Error.New("에러 발생"));
-        MenuHelper.PrintResult("FinFail(Error)", fail);
+        MenuHelper.PrintCode("var fail = Fin.Fail<int>(Error.New(\"에러 발생\"));");
+        var fail = Fin.Fail<int>(Error.New("에러 발생"));
+        MenuHelper.PrintResult("Fin.Fail(Error)", fail);
 
         // ============================================================
         // 4. IsSucc, IsFail 검사
@@ -81,17 +81,17 @@ public static class E02_FinBasics
         // ============================================================
         MenuHelper.PrintSubHeader("6. Map과 Bind");
 
-        var mapped = FinSucc(10)
+        var mapped = Fin.Succ(10)
             .Map(x => x * 2)
             .Map(x => $"결과: {x}");
 
-        MenuHelper.PrintResult("FinSucc(10).Map(*2).Map(문자열)", mapped);
+        MenuHelper.PrintResult("Fin.Succ(10).Map(*2).Map(문자열)", mapped);
 
         // 실패 전파
-        var failChain = FinFail<int>(Error.New("초기 에러"))
+        var failChain = Fin.Fail<int>(Error.New("초기 에러"))
             .Map(x => x * 2);
 
-        MenuHelper.PrintResult("FinFail.Map", failChain);
+        MenuHelper.PrintResult("Fin.Fail.Map", failChain);
 
         // ============================================================
         // 7. LINQ 쿼리 구문
@@ -132,8 +132,8 @@ public static class E02_FinBasics
     }
 
     private static Fin<int> ParseInt(string s) =>
-        int.TryParse(s, out var i) ? FinSucc(i) : FinFail<int>(Error.New($"'{s}'는 정수가 아닙니다"));
+        int.TryParse(s, out var i) ? Fin.Succ(i) : Fin.Fail<int>(Error.New($"'{s}'는 정수가 아닙니다"));
 
     private static Fin<int> SafeDivide(int a, int b) =>
-        b == 0 ? FinFail<int>(Error.New("0으로 나눌 수 없습니다")) : FinSucc(a / b);
+        b == 0 ? Fin.Fail<int>(Error.New("0으로 나눌 수 없습니다")) : Fin.Succ(a / b);
 }
