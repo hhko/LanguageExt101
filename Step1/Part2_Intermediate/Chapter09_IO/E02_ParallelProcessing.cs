@@ -122,9 +122,9 @@ public static class E02_ParallelProcessing
         // 개별적으로 에러 처리
         var safeParallel =
             from results in awaitAll(
-                FetchWithError("서비스1", false).Try(),
-                FetchWithError("서비스2", true).Try(),  // 실패
-                FetchWithError("서비스3", false).Try()
+                FetchWithError("서비스1", false).Try().runFin.As(),
+                FetchWithError("서비스2", true).Try().runFin.As(),  // 실패
+                FetchWithError("서비스3", false).Try().runFin.As()
             )
             select results;
 
@@ -214,11 +214,11 @@ public static class E02_ParallelProcessing
             return "다크모드, 한국어";
         });
 
-        return
+        return (
             from results in awaitAll(GetBasicInfo(), GetOrderHistory(), GetPreferences())
             let basic = results[0]
             let orders = results[1]
             let prefs = results[2]
-            select $"사용자: {basic}, {orders}, 설정: {prefs}";
+            select $"사용자: {basic}, {orders}, 설정: {prefs}").As();
     }
 }
