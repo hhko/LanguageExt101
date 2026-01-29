@@ -239,28 +239,44 @@ public static class E03_GuardInPipelines
         return Right($"{username} ({email})");
     }
 
+    // ---------------------------------------------------------
+    // LINQ 타입 결정 규칙과 모나드 변환:
+    //
+    // 이 함수는 Option (DB 조회)과 Fin (결과)을 조합합니다.
+    // Option과 Fin은 서로 다른 모나드이므로 직접 LINQ로 조합할 수 없습니다.
+    //
+    // 해결책: Option → Fin 변환 헬퍼 함수 사용
+    // ToFin(Option<A>, Error) : Option이 None이면 Error로 실패
+    //
+    // [핵심 규칙]
+    // LINQ에서 서로 다른 모나드를 혼합하려면:
+    // 1. 첫 번째 from의 타입이 전체 쿼리 타입을 결정
+    // 2. 이후 from들은 같은 타입이거나 변환 가능해야 함
+    // 3. 변환 헬퍼 함수를 통해 타입을 통일
+    // ---------------------------------------------------------
     private static Fin<string> ProcessOrderRequest(OrderRequest request)
     {
-        // 고객 확인
-        var customer = CustomerDb.Find(request.CustomerId);
-        if (customer.IsNone)
-            return FinFail<string>(Error.New("고객을 찾을 수 없습니다"));
+        // Option → Fin 변환 헬퍼 (None일 때 에러로 변환)
+        Fin<T> ToFin<T>(Option<T> opt, Error error) =>
+            opt.Match(
+                Some: Fin.Succ,
+                None: () => Fin.Fail<T>(error));
 
-        var cust = customer.IfNone(() => throw new InvalidOperationException());
-        if (!cust.IsActive)
-            return FinFail<string>(Error.New("비활성 고객입니다"));
-
-        // 상품 확인
-        var product = ProductDb.Find(request.ProductId);
-        if (product.IsNone)
-            return FinFail<string>(Error.New("상품을 찾을 수 없습니다"));
-
-        var prod = product.IfNone(() => throw new InvalidOperationException());
-        if (prod.Stock == 0)
-            return FinFail<string>(Error.New("품절된 상품입니다"));
-        if (prod.Stock < request.Quantity)
-            return FinFail<string>(Error.New($"재고 부족 (현재: {prod.Stock})"));
-
-        return FinSucc($"{prod.Name} x {request.Quantity}");
+        // LINQ로 조합: 모든 단계가 Fin으로 통일됨
+        return
+            from cust in ToFin(CustomerDb.Find(request.CustomerId),
+                               Error.New("고객을 찾을 수 없습니다"))
+            from _1 in cust.IsActive
+                ? Fin.Succ(unit)
+                : Fin.Fail<Unit>(Error.New("비활성 고객입니다"))
+            from prod in ToFin(ProductDb.Find(request.ProductId),
+                               Error.New("상품을 찾을 수 없습니다"))
+            from _2 in prod.Stock > 0
+                ? Fin.Succ(unit)
+                : Fin.Fail<Unit>(Error.New("품절된 상품입니다"))
+            from _3 in prod.Stock >= request.Quantity
+                ? Fin.Succ(unit)
+                : Fin.Fail<Unit>(Error.New($"재고 부족 (현재: {prod.Stock})"))
+            select $"{prod.Name} x {request.Quantity}";
     }
 }
