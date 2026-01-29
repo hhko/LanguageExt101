@@ -10,15 +10,15 @@ permissions:
 
 env:
   CONFIGURATION: Release
-  DOTNET_VERSION: '9.0.x'
+  DOTNET_VERSION: '10.0.x'
 
 jobs:
   release:
     runs-on: ubuntu-24.04
 
     env:
-      SOLUTION_FILE: ${{ github.workspace }}/Functorium.sln
-      PROJECT_FILE: ${{ github.workspace }}/Src/Functorium/Functorium.csproj
+      SOLUTION_FILE: ${{ github.workspace }}/LanguageExt101.sln
+      PROJECT_FILE: ${{ github.workspace }}/Step1/LanguageExt101.csproj
       NUPKG_DIR: ${{ github.workspace }}/nupkgs
 
     steps:
