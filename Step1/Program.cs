@@ -396,7 +396,9 @@ void RunChapter11Menu()
             (1, "E01: OptionT"),
             (2, "E02: EitherT"),
             (3, "E03: FinT"),
-            (4, "Exercise08: 비동기 파이프라인 (실습)")
+            (4, "E04: StateT"),
+            (5, "E05: 복합 트랜스포머 스택"),
+            (6, "Exercise08: 비동기 파이프라인 (실습)")
         );
 
         switch (choice)
@@ -405,7 +407,9 @@ void RunChapter11Menu()
             case 1: E01_OptionT.Run(); MenuHelper.WaitForKey(); break;
             case 2: E02_EitherT.Run(); MenuHelper.WaitForKey(); break;
             case 3: E03_FinT.Run(); MenuHelper.WaitForKey(); break;
-            case 4: Exercise08_AsyncPipeline.Run(); MenuHelper.WaitForKey(); break;
+            case 4: E04_StateT.Run(); MenuHelper.WaitForKey(); break;
+            case 5: E05_CompositeStack.Run(); MenuHelper.WaitForKey(); break;
+            case 6: Exercise08_AsyncPipeline.Run(); MenuHelper.WaitForKey(); break;
             default: Console.WriteLine("\n  잘못된 선택입니다."); break;
         }
     }
@@ -421,7 +425,9 @@ void RunChapter12Menu()
             (2, "E02: Functor와 Applicative"),
             (3, "E03: Monad와 Alternative"),
             (4, "E04: Foldable과 Traversable"),
-            (5, "Exercise09: 제네릭 함수 (실습)")
+            (5, "E05: Deriving 패턴"),
+            (6, "E06: MonadIO와 Stateful"),
+            (7, "Exercise09: 제네릭 함수 (실습)")
         );
 
         switch (choice)
@@ -431,7 +437,9 @@ void RunChapter12Menu()
             case 2: E02_FunctorApplicative.Run(); MenuHelper.WaitForKey(); break;
             case 3: E03_MonadAlternative.Run(); MenuHelper.WaitForKey(); break;
             case 4: E04_FoldableTraversable.Run(); MenuHelper.WaitForKey(); break;
-            case 5: Exercise09_GenericFunctions.Run(); MenuHelper.WaitForKey(); break;
+            case 5: E05_Deriving.Run(); MenuHelper.WaitForKey(); break;
+            case 6: E06_MonadIOAndStateful.Run(); MenuHelper.WaitForKey(); break;
+            case 7: Exercise09_GenericFunctions.Run(); MenuHelper.WaitForKey(); break;
             default: Console.WriteLine("\n  잘못된 선택입니다."); break;
         }
     }
@@ -469,7 +477,7 @@ void RunChapter14Menu()
             "Chapter 14: 실무 적용",
             (1, "E01: Before/After 리팩토링"),
             (2, "E02: 도메인 모델링"),
-            (3, "최종 프로젝트: 미니 쇼핑몰")
+            (3, "최종 프로젝트: Pontoon 카드 게임")
         );
 
         switch (choice)
