@@ -226,7 +226,11 @@ void RunChapter04Menu()
             (1, "E01: Error 타입 종류"),
             (2, "E02: Fin 기본 사용"),
             (3, "E03: 에러 결합"),
-            (4, "Exercise03: API 결과 처리 (실습)")
+            (4, "Exercise03: API 결과 처리 (실습)"),
+            (5, "E04: Try 기본"),
+            (6, "E05: Try 합성"),
+            (7, "E06: 실무 Try 활용"),
+            (8, "Exercise04: 예외 안전 파이프라인 (실습)")
         );
 
         switch (choice)
@@ -236,6 +240,10 @@ void RunChapter04Menu()
             case 2: E02_FinBasics.Run(); MenuHelper.WaitForKey(); break;
             case 3: E03_ErrorCombining.Run(); MenuHelper.WaitForKey(); break;
             case 4: Exercise03_ApiResults.Run(); MenuHelper.WaitForKey(); break;
+            case 5: E04_TryBasics.Run(); MenuHelper.WaitForKey(); break;
+            case 6: E05_TryComposition.Run(); MenuHelper.WaitForKey(); break;
+            case 7: E06_TryRealWorld.Run(); MenuHelper.WaitForKey(); break;
+            case 8: Exercise04_TryPipeline.Run(); MenuHelper.WaitForKey(); break;
             default: Console.WriteLine("\n  잘못된 선택입니다."); break;
         }
     }
@@ -409,19 +417,21 @@ void RunChapter12Menu()
     {
         var choice = MenuHelper.ShowMenu(
             "Chapter 12: Traits 시스템",
-            (1, "E01: Functor와 Applicative"),
-            (2, "E02: Monad 트레이트"),
-            (3, "E03: Foldable과 Traversable"),
-            (4, "Exercise09: 제네릭 함수 (실습)")
+            (1, "E01: Traits 시스템 개요"),
+            (2, "E02: Functor와 Applicative"),
+            (3, "E03: Monad와 Alternative"),
+            (4, "E04: Foldable과 Traversable"),
+            (5, "Exercise09: 제네릭 함수 (실습)")
         );
 
         switch (choice)
         {
             case 0: return;
-            case 1: E01_FunctorApplicative.Run(); MenuHelper.WaitForKey(); break;
-            case 2: E02_Monad.Run(); MenuHelper.WaitForKey(); break;
-            case 3: E03_FoldableTraversable.Run(); MenuHelper.WaitForKey(); break;
-            case 4: Exercise09_GenericFunctions.Run(); MenuHelper.WaitForKey(); break;
+            case 1: E01_TraitsOverview.Run(); MenuHelper.WaitForKey(); break;
+            case 2: E02_FunctorApplicative.Run(); MenuHelper.WaitForKey(); break;
+            case 3: E03_MonadAlternative.Run(); MenuHelper.WaitForKey(); break;
+            case 4: E04_FoldableTraversable.Run(); MenuHelper.WaitForKey(); break;
+            case 5: Exercise09_GenericFunctions.Run(); MenuHelper.WaitForKey(); break;
             default: Console.WriteLine("\n  잘못된 선택입니다."); break;
         }
     }
