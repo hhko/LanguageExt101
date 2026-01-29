@@ -342,9 +342,114 @@ public static class E04_FoldableTraversable
         MenuHelper.PrintExplanation("  - I/O 바운드 작업이 많을 때");
 
         // ============================================================
-        // 16. 정리
+        // 16. TraverseM - 모나딕 순회
         // ============================================================
-        MenuHelper.PrintSubHeader("16. 정리");
+        MenuHelper.PrintSubHeader("16. TraverseM - 모나딕 순회");
+
+        MenuHelper.PrintExplanation("TraverseM은 Monad 기반 순회입니다 (vs Traverse는 Applicative 기반):");
+        MenuHelper.PrintExplanation("  - Traverse: Applicative 기반, 독립적인 효과 병합");
+        MenuHelper.PrintExplanation("  - TraverseM: Monad 기반, 순차적 효과 (이전 결과에 의존 가능)");
+        MenuHelper.PrintBlankLines();
+
+        MenuHelper.PrintCode(@"// Traverse vs TraverseM
+// Traverse: Applicative 기반 - 각 연산이 독립적
+Seq<A>.Traverse<F, B>(A -> F<B>) -> F<Seq<B>>
+
+// TraverseM: Monad 기반 - 순차적 실행, 이전 결과 참조 가능
+Seq<A>.TraverseM<M, B>(A -> K<M, B>) -> K<M, Seq<B>>
+
+// FinalProject.cs Line 672-673에서 사용
+players.TraverseM(p => PontoonPlayerOps.with(p, ma))
+// 각 플레이어에 대해 순차적으로 ma 연산 실행");
+
+        MenuHelper.PrintBlankLines();
+        MenuHelper.PrintExplanation("TraverseM 사용 예:");
+
+        MenuHelper.PrintCode(@"// 플레이어 순회하며 순차적으로 처리
+public static PontoonGame<Unit> with<A>(Seq<PontoonPlayer> players, PontoonGame<A> ma) =>
+    players.TraverseM(p => PontoonPlayerOps.with(p, ma))  // 순차 실행
+           .Map(_ => unit)
+           .As();
+
+// 각 플레이어마다:
+// 1. 해당 플레이어를 현재 플레이어로 설정
+// 2. ma 연산 실행
+// 3. 다음 플레이어로 이동
+// 순서가 보장됨!");
+
+        // ============================================================
+        // 17. IgnoreF - 결과값 무시
+        // ============================================================
+        MenuHelper.PrintSubHeader("17. IgnoreF - 결과값 무시");
+
+        MenuHelper.PrintExplanation("IgnoreF는 모나드 연산의 결과값을 버리고 효과만 유지합니다:");
+        MenuHelper.PrintExplanation("  - K<M, A>.IgnoreF() → K<M, Unit>");
+        MenuHelper.PrintExplanation("  - 값은 필요 없고 효과(부수작용)만 필요할 때 사용");
+        MenuHelper.PrintBlankLines();
+
+        MenuHelper.PrintCode(@"// IgnoreF 사용
+// 결과값 A를 버리고 Unit으로 변환
+K<M, A> computation = ...;
+K<M, Unit> effectOnly = computation.IgnoreF();
+
+// FinalProject.cs Line 667에서 사용
+public static PontoonGame<Unit> with<A>(PontoonGame<Seq<PontoonPlayer>> playersM, PontoonGame<A> ma) =>
+    playersM.Bind(ps => with(ps, ma))
+            .IgnoreF()  // Seq<A> 결과는 필요 없음, Unit으로 변환
+            .As();
+
+// 같은 효과:
+// .Map(_ => unit)
+// 하지만 IgnoreF가 더 명시적이고 간결함");
+
+        // ============================================================
+        // 18. >>> 연산자 - 순차 실행
+        // ============================================================
+        MenuHelper.PrintSubHeader("18. >>> 연산자 - 순차 실행");
+
+        MenuHelper.PrintExplanation(">>> 연산자는 두 액션을 순차 실행하고 두 번째 결과를 반환합니다:");
+        MenuHelper.PrintExplanation("  - ma >>> mb: ma 실행 후 mb 실행, mb의 결과 반환");
+        MenuHelper.PrintExplanation("  - >> 연산자와 유사하지만 모나드 컨텍스트에서 사용");
+        MenuHelper.PrintBlankLines();
+
+        MenuHelper.PrintCode(@"// >>> vs >> 연산자
+// >> : 함수 합성 (f >> g = x => g(f(x)))
+// >>> : 모나드 액션 순차 실행 (ma >>> mb = ma 실행 후 mb 실행)
+
+// FinalProject.cs Line 898-900에서 사용
+static PontoonGame<Unit> playHands =>
+    from _ in initPlayers >>>  // 1. 플레이어 초기화
+              playHand >>>     // 2. 게임 진행
+              PontoonDisplay.askPlayAgain  // 3. 재시작 질문
+    from key in PontoonConsole.readKey
+    from __ in when(key.Key == ConsoleKey.Y, playHands)
+    select unit;
+
+// >>> 체인: initPlayers → playHand → askPlayAgain
+// 각 단계의 결과값은 무시, 마지막(askPlayAgain)의 결과가 from _에 바인딩");
+
+        MenuHelper.PrintBlankLines();
+        MenuHelper.PrintExplanation(">>> vs from/select 비교:");
+
+        MenuHelper.PrintCode(@"// LINQ 스타일 (값을 참조할 때)
+from x in action1
+from y in action2  // x 참조 가능
+select y
+
+// >>> 스타일 (값 무시, 순차 실행만 필요할 때)
+action1 >>> action2  // 간결함!
+
+// 같은 의미:
+action1 >>> action2
+≡
+from _ in action1
+from result in action2
+select result");
+
+        // ============================================================
+        // 19. 정리
+        // ============================================================
+        MenuHelper.PrintSubHeader("19. 정리");
 
         MenuHelper.PrintExplanation("Foldable<T>:");
         MenuHelper.PrintExplanation("  - Fold로 컬렉션을 단일 값으로 축적");
@@ -353,9 +458,15 @@ public static class E04_FoldableTraversable
         MenuHelper.PrintBlankLines();
 
         MenuHelper.PrintExplanation("Traversable<T>:");
-        MenuHelper.PrintExplanation("  - Traverse로 이펙트 함수를 일괄 적용");
+        MenuHelper.PrintExplanation("  - Traverse로 이펙트 함수를 일괄 적용 (Applicative)");
+        MenuHelper.PrintExplanation("  - TraverseM으로 순차적 효과 적용 (Monad)");
         MenuHelper.PrintExplanation("  - Sequence로 이펙트 순서 뒤집기");
         MenuHelper.PrintExplanation("  - 배치 처리, 일괄 검증에 핵심");
+        MenuHelper.PrintBlankLines();
+
+        MenuHelper.PrintExplanation("유틸리티 연산:");
+        MenuHelper.PrintExplanation("  - IgnoreF: 결과값 무시, 효과만 유지 (K<M, A> → K<M, Unit>)");
+        MenuHelper.PrintExplanation("  - >>>: 순차 실행, 두 번째 결과 반환");
         MenuHelper.PrintBlankLines();
 
         MenuHelper.PrintExplanation("비동기 Traverse:");
