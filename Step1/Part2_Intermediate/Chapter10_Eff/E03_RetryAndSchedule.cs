@@ -1,4 +1,5 @@
 using LanguageExt;
+using LanguageExt.Common;
 using LanguageExt101.Common;
 using static LanguageExt.Prelude;
 
@@ -103,19 +104,18 @@ public static class E03_RetryAndSchedule
             {
                 Console.WriteLine("    [Primary] 주 서버 호출 시도...");
                 throw new Exception("주 서버 응답 없음");
+#pragma warning disable CS0162 // 접근할 수 없는 코드
                 return "주 서버 데이터";
+#pragma warning restore CS0162
             })
             .Try()
-            .Bind(result => result.Match(
-                Succ: data => IO.pure(data),
-                Fail: _ => IO.lift(() =>
-                {
-                    Console.WriteLine("    [Fallback] 백업 서버 호출...");
-                    return "백업 서버 데이터";
-                })
-            ));
+            .IfFail(_ =>
+            {
+                Console.WriteLine("    [Fallback] 백업 서버 호출...");
+                return "백업 서버 데이터";
+            });
 
-        var fallbackResult = withFallback.Run();
+        var fallbackResult = withFallback.As().Run();
         MenuHelper.PrintResult("폴백 결과", fallbackResult);
 
         // ============================================================
@@ -225,7 +225,7 @@ public static class E03_RetryAndSchedule
 
     private static IO<Fin<string>> Retry(Func<string> operation, int maxAttempts, int delayMs)
     {
-        return IO.lift(() =>
+        return IO.lift<Fin<string>>(() =>
         {
             Exception? lastError = null;
             for (int attempt = 1; attempt <= maxAttempts; attempt++)
@@ -234,7 +234,7 @@ public static class E03_RetryAndSchedule
                 {
                     Console.WriteLine($"    [시도 {attempt}/{maxAttempts}]");
                     var result = operation();
-                    return Fin<string>.Succ(result);
+                    return Fin.Succ(result);
                 }
                 catch (Exception ex)
                 {
@@ -247,13 +247,13 @@ public static class E03_RetryAndSchedule
                     }
                 }
             }
-            return Fin<string>.Fail(lastError!);
+            return Fin.Fail<string>(lastError!.Message);
         });
     }
 
     private static IO<Fin<string>> RetryWithExponentialBackoff(Func<string> operation, int maxAttempts, int initialDelayMs)
     {
-        return IO.lift(() =>
+        return IO.lift<Fin<string>>(() =>
         {
             Exception? lastError = null;
             int delay = initialDelayMs;
@@ -264,7 +264,7 @@ public static class E03_RetryAndSchedule
                 {
                     Console.WriteLine($"    [시도 {attempt}/{maxAttempts}]");
                     var result = operation();
-                    return Fin<string>.Succ(result);
+                    return Fin.Succ(result);
                 }
                 catch (Exception ex)
                 {
@@ -278,13 +278,13 @@ public static class E03_RetryAndSchedule
                     }
                 }
             }
-            return Fin<string>.Fail(lastError!);
+            return Fin.Fail<string>(lastError!.Message);
         });
     }
 
     private static IO<Fin<string>> RetryWhen(Func<string> operation, Func<Exception, bool> shouldRetry, int maxAttempts)
     {
-        return IO.lift(() =>
+        return IO.lift<Fin<string>>(() =>
         {
             Exception? lastError = null;
             for (int attempt = 1; attempt <= maxAttempts; attempt++)
@@ -293,7 +293,7 @@ public static class E03_RetryAndSchedule
                 {
                     Console.WriteLine($"    [시도 {attempt}/{maxAttempts}]");
                     var result = operation();
-                    return Fin<string>.Succ(result);
+                    return Fin.Succ(result);
                 }
                 catch (Exception ex)
                 {
@@ -303,7 +303,7 @@ public static class E03_RetryAndSchedule
                     if (!shouldRetry(ex))
                     {
                         Console.WriteLine("    재시도 불가능한 에러, 즉시 종료");
-                        return Fin<string>.Fail(ex);
+                        return Fin.Fail<string>(ex.Message);
                     }
 
                     if (attempt < maxAttempts)
@@ -312,13 +312,13 @@ public static class E03_RetryAndSchedule
                     }
                 }
             }
-            return Fin<string>.Fail(lastError!);
+            return Fin.Fail<string>(lastError!.Message);
         });
     }
 
     private static IO<Fin<string>> TryMultiple(params (string name, Func<string> action)[] alternatives)
     {
-        return IO.lift(() =>
+        return IO.lift<Fin<string>>(() =>
         {
             Exception? lastError = null;
             foreach (var (name, action) in alternatives)
@@ -327,7 +327,7 @@ public static class E03_RetryAndSchedule
                 {
                     var result = action();
                     Console.WriteLine($"    [{name}] 성공!");
-                    return Fin<string>.Succ(result);
+                    return Fin.Succ(result);
                 }
                 catch (Exception ex)
                 {
@@ -335,13 +335,13 @@ public static class E03_RetryAndSchedule
                     Console.WriteLine($"    [{name}] 실패: {ex.Message}");
                 }
             }
-            return Fin<string>.Fail(lastError!);
+            return Fin.Fail<string>(lastError!.Message);
         });
     }
 
     private static IO<Fin<string>> WithTimeout(Func<string> operation, int timeoutMs)
     {
-        return IO.lift(() =>
+        return IO.lift<Fin<string>>(() =>
         {
             using var cts = new CancellationTokenSource(timeoutMs);
             var task = Task.Run(operation, cts.Token);
@@ -350,20 +350,20 @@ public static class E03_RetryAndSchedule
             {
                 if (task.Wait(timeoutMs))
                 {
-                    return Fin<string>.Succ(task.Result);
+                    return Fin.Succ(task.Result);
                 }
-                return Fin<string>.Fail(Error.New("작업 타임아웃"));
+                return Fin.Fail<string>("작업 타임아웃");
             }
             catch (AggregateException ae)
             {
-                return Fin<string>.Fail(ae.InnerException ?? ae);
+                return Fin.Fail<string>((ae.InnerException ?? ae).Message);
             }
         });
     }
 
     private static IO<Fin<string>> CreateResilientApiCall(string url, int maxRetries, int timeoutMs)
     {
-        return IO.lift(() =>
+        return IO.lift<Fin<string>>(() =>
         {
             Console.WriteLine($"    [API] {url} 호출 중...");
             Console.WriteLine($"    설정: 최대 {maxRetries}회 재시도, {timeoutMs}ms 타임아웃");
@@ -382,7 +382,7 @@ public static class E03_RetryAndSchedule
                     if (_attemptCount < 3)
                         throw new Exception("서버 일시 오류 (503)");
 
-                    return Fin<string>.Succ("{ \"users\": [...], \"count\": 42 }");
+                    return Fin.Succ("{ \"users\": [...], \"count\": 42 }");
                 }
                 catch (Exception ex)
                 {
@@ -395,7 +395,7 @@ public static class E03_RetryAndSchedule
 
             // 폴백: 캐시된 데이터 반환
             Console.WriteLine("    [폴백] 캐시된 데이터 사용");
-            return Fin<string>.Succ("{ \"users\": [...], \"count\": 35, \"cached\": true }");
+            return Fin.Succ("{ \"users\": [...], \"count\": 35, \"cached\": true }");
         });
     }
 
@@ -438,14 +438,14 @@ public static class E03_RetryAndSchedule
 
         public IO<Fin<string>> Execute(Func<string> operation)
         {
-            return IO.lift(() =>
+            return IO.lift<Fin<string>>(() =>
             {
                 // 회로가 열려있는지 확인
                 if (_isOpen)
                 {
                     if ((DateTime.Now - _lastFailure).TotalMilliseconds < _resetTimeMs)
                     {
-                        return Fin<string>.Fail(Error.New("회로 차단 중 - 요청 거부"));
+                        return Fin.Fail<string>("회로 차단 중 - 요청 거부");
                     }
                     // 리셋 시간 경과, 반열림 상태
                     _isOpen = false;
@@ -456,7 +456,7 @@ public static class E03_RetryAndSchedule
                 {
                     var result = operation();
                     _failureCount = 0; // 성공 시 카운터 리셋
-                    return Fin<string>.Succ(result);
+                    return Fin.Succ(result);
                 }
                 catch (Exception ex)
                 {
@@ -469,7 +469,7 @@ public static class E03_RetryAndSchedule
                         Console.WriteLine($"    [Circuit Breaker] 회로 열림! ({_failureCount}회 연속 실패)");
                     }
 
-                    return Fin<string>.Fail(ex);
+                    return Fin.Fail<string>(ex.Message);
                 }
             });
         }
